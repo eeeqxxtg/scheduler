@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>scheduler</title>
+</head>
+
+<body>
+<script>
+    const rAf = requestAnimationFrame;
+    const cAf = cancelAnimationFrame;
+    const rIc = requestIdleCallback;
+    const cIc = cancelIdleCallback;
+
+    const now = performance.now.bind(performance);
+
+    const rAfLoop = (callBack, totalcount = 5) => {
+        let count = 0;
+
+        const rAfTick = (timestamp) => {
+            callBack(timestamp);
+            count++;
+            timer = rAf(rAfTick);
+            if ( count >= totalcount) {
+                cAf(timer);
+            }
+        };
+
+        let timer = rAf(rAfTick);
+    };
+
+    const rIcLoop = (callBack, totalcount = 5) => {
+        let count = 0;
+
+        const rIcTick = (deadline) => {
+            callBack(deadline);
+            count++;
+            timer = rIc(rIcTick);
+            if ( count >= totalcount) {
+                cIc(timer);
+            }
+        };
+
+        let timer = rIc(rIcTick);
+    };
+
+    const timeoutLoop = (callBack, totalcount = 5) => {
+        let count = 0;
+
+        const timeoutTick = () => {
+            callBack(now());
+            count++;
+            timer = setTimeout(timeoutTick, 0);
+            if ( count >= totalcount) {
+                clearTimeout(timer);
+            }
+        };
+
+        let timer = setTimeout(timeoutTick, 0);
+    };
+
+    const promiseLoop = (callBack, totalcount = 5) => {
+        let count = 0;
+
+        const promiseTick = () => {
+            callBack(now());
+            count++;
+            if ( count < totalcount) {
+                Promise.resolve().then(promiseTick);
+            }
+        };
+
+        Promise.resolve().then(promiseTick);
+    };
+
+    const messageLoop = (callBack, totalcount = 5) => {
+        let count = 0;
+        const messageTick = () => {
+            callBack(now());
+            count++;
+            if ( count < totalcount) {
+                port.postMessage(null);
+            }
+        };
+        
+        const chanle = new MessageChannel();
+        const port = chanle.port2;
+        chanle.port1.onmessage = messageTick;
+
+        port.postMessage(null);
+    };
+
+    rAfLoop((timestamp) => {
+        console.log('rAf======>', timestamp);
+    });
+
+    rIcLoop((deadline) => {
+        console.log('rIc======>', deadline.timeRemaining());
+    });
+
+    timeoutLoop((time) => {
+        console.log('timeout======>', time);
+    });
+
+    promiseLoop((time) => {
+        console.log('promise======>', time);
+    });
+
+    messageLoop((time) => {
+        console.log('message======>', time);
+    });
+
+</script>
+</body>
+
+</html>
