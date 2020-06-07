@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>fiber</title>
+
+  <style>
+    html,body {
+      padding: 0;
+      margin: 0;
+    }
+    #root {
+      width: 600px;
+      height: 400px;
+      margin: 0 auto;
+    }
+    .circles {
+      position: relative;
+    }
+    .main-thread, .paint-thread {
+      fill: none;
+      stroke: #e4e4e4;
+      stroke-width: 20px;
+    }
+    /* .task-thread {
+      fill: none;
+      stroke: #e4e4e4;
+      stroke-width: 20px;
+    } */
+    .raf-stage, .style-stage, .layout-stage, .paint-stage {
+      fill: none;
+      stroke-width: 20px;
+      transform-origin: 400px 200px;
+    }
+    .raf-stage {
+      stroke: skyblue;
+      stroke-dasharray: 10 1000;
+      transform: rotate(-23deg);
+    }
+    .style-stage {
+      stroke: #9B7FE6;
+      stroke-dasharray: 25 1000;
+      transform: rotate(-16deg);
+    }
+    .layout-stage {
+      stroke: #9B7FE6;
+      stroke-dasharray: 32 1000;
+      transform: rotate(0deg);
+    }
+    .paint-stage {
+      stroke: #74B266;
+      stroke-dasharray: 20 1000;
+      transform: rotate(20deg);
+    }
+
+    .pin {
+      stroke: none;
+      fill: green;
+      transform-origin: 360px 110px;
+    }
+    .ball {
+      fill: #476cdf;
+      stroke: none;
+    }
+
+    .control {
+      text-align: center;
+    }
+  </style>
+
+  <script src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+</head>
+<body>
+  <div id="root">
+    <svg width="600" height="400">
+      <g class="circles">
+        <circle class="main-thread" cx="300" cy="200" r="100" />
+        <path
+          class="paint-thread"
+          d="M300 100 h100 a 100 100 0 1 1 0 200 h-100"
+        />
+        <circle class="raf-stage" cx="400" cy="200" r="100" />
+        <circle class="style-stage" cx="400" cy="200" r="100" />
+        <circle class="layout-stage" cx="400" cy="200" r="100" />
+        <circle class="paint-stage" cx="400" cy="200" r="100" />
+        <!-- <path
+          class="task-thread"
+          d="M300 100 h-100 a 100 100 0 1 0 0 200 h100"
+        /> -->
+        <path
+          class="pin"
+          :style="{transform: `rotate(${needPaint ? -10 : 42}deg)`}"
+          d="M 330 110 l30 -4 a 4 4 0 1 1 0 8 z"
+        />
+      </g>
+      <g class="move">
+        <circle class="ball" :cx="ballX" :cy="ballY" r="10" />
+      </g>
+    </svg>
+    <div class="control">
+      <button :disabled="needPaint" @click="needPaint = true;">requestPaint</button>
+    </div>
+  </div>
+</body>
+<script>
+  const app = new Vue({
+    el: '#root',
+    data() {
+      return {
+        needPaint: false,
+        ballX: 300,
+        ballY: 100
+      };
+    },
+    mounted() {
+      const createBallMove = (T) => {
+        const baseX = 300;
+        const baseY = 200;
+        const r = 100;
+        const topY = 100;
+        const bottomY = 300;
+        const centerY = 200;
+        const centerX = 350;
+        const leftX = 300;
+        const rightX = 400;
+
+        const count = T * 60 / 1000;
+        const dtheta = Math.PI * 2 / count;
+        const dLen = r * dtheta;
+
+        const paintStart = 3 * Math.PI /2;
+        const paintEnd = Math.PI /2;
+
+        let theta = paintStart;
+        let x = baseX + Math.cos(theta) * r;
+        let y = baseY + Math.sin(theta) * r;
+
+        let painting = false;
+        return () => {
+          if (theta <= paintStart && theta > paintStart - dtheta) {
+            if (this.needPaint) {
+              painting = true;
+            }
+          }
+          if (painting) {
+            if (y < centerY && x < rightX) {
+              x = x + dLen;
+              y = topY;
+              if (this.needPaint && x > rightX - dLen) {
+                this.needPaint = false;
+              }
+            } else if (y > centerY && x > leftX  && x < rightX) {
+              x = x - dLen;
+              y = bottomY;
+              if (x > leftX && x < leftX + dLen) {
+                painting = false;
+              }
+            } else {
+              theta = (theta + dtheta) % (2 * Math.PI);
+              x = rightX + Math.cos(theta) * r;
+              y = baseY + Math.sin(theta) * r;
+            }
+          } else {
+            theta = (theta + dtheta) % (2 * Math.PI);
+            x = baseX + Math.cos(theta) * r;
+            y = baseY + Math.sin(theta) * r;
+          }
+
+          return {x, y};
+        };
+
+      };
+      const T = 2500;
+      const ballTick = createBallMove(T);
+      const ballMove = () => {
+        const {x, y} = ballTick();
+        this.ballX = x;
+        this.ballY = y;
+        requestAnimationFrame(ballMove);
+      };
+      requestAnimationFrame(ballMove);
+    },
+  });
+</script>
+</html>
